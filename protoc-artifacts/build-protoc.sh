@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 # Builds protoc executable into target/<OS>/<ARCH>/protoc.exe; optionally builds
 # protoc plugins into target/<OS>/<ARCH>/protoc-gen-*.exe
@@ -10,6 +10,7 @@
 #   HOST   <OS>    <ARCH>   <COMMENT>
 #   cygwin windows x86_32   Requires: i686-w64-mingw32-gcc
 #   cygwin windows x86_64   Requires: x86_64-w64-mingw32-gcc
+#   freebsd freebsd x86_64
 #   linux  linux   aarch_64 Requires: g++-aarch64-linux-gnu
 #   linux  linux   x86_32
 #   linux  linux   x86_64
@@ -82,7 +83,7 @@ checkArch ()
 {
   echo
   echo "Checking file format ..."
-  if [[ "$OS" == windows || "$OS" == linux ]]; then
+  if [[ "$OS" == windows || "$OS" == linux || "$OS" == freebsd ]]; then
     format="$(objdump -f "$1" | grep -o "file format .*$" | grep -o "[^ ]*$")"
     echo Format=$format
     if [[ "$OS" == linux ]]; then
@@ -102,12 +103,18 @@ checkArch ()
       else
         fail "Unsupported arch: $ARCH"
       fi
-    else
-      # $OS == windows
+    elif [[ "$OS" == windows ]]; then
       if [[ "$ARCH" == x86_32 ]]; then
         assertEq $format "pei-i386" $LINENO
       elif [[ "$ARCH" == x86_64 ]]; then
         assertEq $format "pei-x86-64" $LINENO
+      else
+        fail "Unsupported arch: $ARCH"
+      fi
+    else
+      # $OS == freebsd
+      if [[ "$ARCH" == x86_64 ]]; then
+        assertEq $format "elf64-x86-64-freebsd" $LINENO
       else
         fail "Unsupported arch: $ARCH"
       fi
@@ -155,6 +162,11 @@ checkDependencies ()
   elif [[ "$OS" == osx ]]; then
     dump_cmd='otool -L '"$1"' | fgrep dylib'
     white_list="libz\.1\.dylib\|libstdc++\.6\.dylib\|libSystem\.B\.dylib"
+  elif [[ "$OS" == freebsd ]]; then
+    dump_cmd='ldd -f "%o\\n" '"$1"
+    if [[ "$ARCH" == x86_64 ]]; then
+      white_list="libz\.so.6\|libc++\.so.1\|libcxxrt\.so.1\|libm\.so.5\|libgcc_s\.so.1\|libthr\.so.3\|libc\.so.7"
+    fi
   fi
   if [[ -z "$white_list" || -z "$dump_cmd" ]]; then
     fail "Unsupported platform $OS-$ARCH."
@@ -239,6 +251,13 @@ elif [[ "$(uname)" == Darwin* ]]; then
     CXXFLAGS="$CXXFLAGS -m64"
   elif [[ "$ARCH" == x86_32 ]]; then
     CXXFLAGS="$CXXFLAGS -m32"
+  else
+    fail "Unsupported arch: $ARCH"
+  fi
+elif [[ "$(uname)" == FreeBSD ]]; then
+  assertEq "$OS" freebsd $LINENO
+  if [[ "$ARCH" == x86_64 ]]; then
+    CXXFLAGS="$CXXFLAGS -m64"
   else
     fail "Unsupported arch: $ARCH"
   fi
