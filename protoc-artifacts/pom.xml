@@ -82,6 +82,11 @@
                   <classifier>linux-aarch_64</classifier>
                   <type>exe</type>
                 </artifact>
+                <artifact>
+                  <file>${basedir}/target/freebsd/x86_64/protoc.exe</file>
+                  <classifier>freebsd-x86_64</classifier>
+                  <type>exe</type>
+                </artifact>
               </artifacts>
             </configuration>
           </execution>
